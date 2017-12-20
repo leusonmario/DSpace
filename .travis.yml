@@ -1,9 +1,6 @@
-language: java
-sudo: false
 
-env: 
-  # Give Maven 1GB of memory to work with
-  - MAVEN_OPTS=-Xmx1024M
+sudo: required
+language: java
 
 jdk:
   # DS-3384 Oracle JDK 8 has DocLint enabled by default.
@@ -11,53 +8,23 @@ jdk:
   - oraclejdk8
 
 ## Should we run into any problems with oraclejdk8 on Travis, we may try the following workaround.
-## https://docs.travis-ci.com/user/languages/java#Testing-Against-Multiple-JDKs
-## https://github.com/travis-ci/travis-ci/issues/3259#issuecomment-130860338
-#addons:
-#  apt:
-#    packages:
-#      - oracle-java8-installer
 
-# Install prerequisites for building Mirage2 more rapidly
-before_install:
-  # Install Node.js 6.5.0 & print version info
-  - nvm install 6.5.0
-  - node --version
-  # Install npm 3.10.8 & print version info
-  - npm install -g npm@3.10.8
-  - npm --version
-  # Install Bower
-  - npm install -g bower
-  # Install Grunt & print version info
-  - npm install -g grunt && npm install -g grunt-cli
-  - grunt --version
-  # Print ruby version info (should be installed)
-  - ruby -v
-  # Install Sass & print version info
-  - gem install sass
-  - sass -v
-  # Install Compass & print version info
-  - gem install compass
-  - compass version
 
-# Skip install stage, as we'll do it below
-install: "echo 'Skipping install stage, dependencies will be downloaded during build and test stages.'"
-
-# Two stage Build and Test
-# 1. Install & Unit Test APIs
-# 2. Assemble DSpace
 script:
-  # 1. [Install & Unit Test] Check source code licenses and run source code Unit Tests
-  #        license:check => Validate all source code license headers
-  #        -Dmaven.test.skip=false => Enable DSpace Unit Tests
-  #        -DskipITs=false         => Enable DSpace Integration Tests
-  #        -P !assembly            => Skip normal assembly (as it can be memory intensive)
-  #        -B => Maven batch/non-interactive mode (recommended for CI)
-  #        -V => Display Maven version info before build
-  #        -Dsurefire.rerunFailingTestsCount=2 => try again for flakey tests, and keep track of/report on number of retries
-  - "mvn clean install license:check -Dmaven.test.skip=false -DskipITs=false -P !assembly -B -V -Dsurefire.rerunFailingTestsCount=2"
-  # 2. [Assemble DSpace] Ensure assembly process works (from [src]/dspace/), including Mirage 2
-  #        -Dmirage2.on=true => Build Mirage2
-  #        -Dmirage2.deps.included=false => Don't include Mirage2 build dependencies (We installed them in before_install)
-  #        -P !assembly => SKIP the actual building of [src]/dspace/dspace-installer (as it can be memory intensive)
-  - "cd dspace && mvn package -Dmirage2.on=true -Dmirage2.deps.included=false -P !assembly -B -V -Dsurefire.rerunFailingTestsCount=2"
+  - mvn clean cobertura:cobertura -Dtest=DSpaceKernelServletContextListenerTest#testSampleRequestDouble -DfailIfNoTests=false
+
+before_deploy:
+- tar -zcvf coverage-result.tar.gz /home/travis/build/leusonmario/DSpace/target/site/cobertura
+
+deploy:
+  provider: releases
+  api_key:
+    secure: "eLHG9y++0AhakdgY944VujFLDP8yOCgJRe2cLKLBClW/c5cet1s/b4EJllnTZzMl8UOSCGjEEjzw3mvIVq+55j4ngtOqfE9l4pXfWJfaf4s/RdxGqGlYPDTMOCGWcOq5D4UvqeyqP2Um6FOqh7OJRE3uHs6x8cNPiNvQQivlSWF/mgcK3G6Bv8pUFa9j5HF3miF4JELRzN1ENyCjxA/bh9nkeLpRDSm7ceaIeWwoATH1ZvAkV1tWT4rdCwhyFInBhfuow8VmYfZ6rKxq84U5/Tt3b/2yJeB0LkQD85pvYIrD1pHCY3baPlZoxyYjki2xi8IYrKinhBNSm4Fm1T/ep08QW1T2dG8ahAOSEIaYweGGe+dXDN8srNNda744HAOE3DwTDeVBBzTvhlf4tQDixiq2yZVWM8KPgBZ++Q8y+GROFjfPQ57pnv2kdM0Bp2x0eKlD1EfqVvpLDQDtW3MaJQR+ggbSme9d5xom3aZQ+l24r+6+aWqmXP16o1Yc/h8ZlRkU/aSHmH4TqOiLUvaLeZ18/TJQ5HVaHWcmsO1q8dfRDb/Pd3nwVHSAZ/Y1RUbS5E0tGkz9WxbM+73d1t37w7E7zqJH5QcGVLbjbCiDziGWfie7M9DtQ/hpZjZNMWFs+YtCh0kQUpDW1UpLlMlO+7TZc1NVi8/DNPNv8QiNYVg="
+
+
+  file: coverage-result.tar.gz
+  file_glob: true
+  overwrite: true
+  skip_cleanup: true
+  on:
+    tags: true
